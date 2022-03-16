@@ -1,7 +1,5 @@
 from six.moves.urllib.parse import urljoin
 import sys
-
-sys.path.append('c:\AngelSmartApi\SmartApi')
 import csv
 import json
 import dateutil.parser
@@ -13,58 +11,19 @@ import requests
 from requests import get
 import re, uuid
 import socket
-
+import platform
 from smartapi.version import __version__, __title__
 
 log = logging.getLogger(__name__)
-
+#user_sys=platform.system()
+#print("the system",user_sys)
 
 class SmartConnect(object):
-    _rootUrl = "https://openapisuat.angelbroking.com"
-    _loginUrl = "https://openapisuat.angelbroking.com/rest/auth/angelbroking/user/v1/loginByPassword"
-    _login_url ="https://smartapi.angelbroking.com/login"
+    #_rootUrl = "https://openapisuat.angelbroking.com"
+    _rootUrl="https://apiconnect.angelbroking.com" #prod endpoint
+    #_login_url ="https://smartapi.angelbroking.com/login"
+    _login_url="https://smartapi.angelbroking.com/publisher-login" #prod endpoint
     _default_timeout = 7  # In seconds
-    # Products
-    PRODUCT_MIS = "MIS"
-
-    PRODUCT_CNC = "CNC"
-    PRODUCT_NRML = "NRML"
-    PRODUCT_CO = "CO"
-    PRODUCT_BO = "BO"
-
-    # Order types
-    ORDER_TYPE_MARKET = "MARKET"
-    ORDER_TYPE_LIMIT = "LIMIT"
-    ORDER_TYPE_SLM = "SL-M"
-    ORDER_TYPE_SL = "SL"
-
-    # Varities
-    VARIETY_REGULAR = "regular"
-    VARIETY_BO = "bo"
-    VARIETY_CO = "co"
-    VARIETY_AMO = "amo"
-
-    # Transaction type
-    TRANSACTION_TYPE_BUY = "BUY"
-    TRANSACTION_TYPE_SELL = "SELL"
-
-    # Validity
-    VALIDITY_DAY = "DAY"
-    VALIDITY_IOC = "IOC"
-
-    # Exchanges
-    EXCHANGE_NSE = "NSE"
-    EXCHANGE_BSE = "BSE"
-    EXCHANGE_NFO = "NFO"
-    EXCHANGE_CDS = "CDS"
-    EXCHANGE_BFO = "BFO"
-    EXCHANGE_MCX = "MCX"
-    EXCHANGE_NCDEX="NCDEX"
-
-    # Status constants
-    STATUS_COMPLETE = "COMPLETE"
-    STATUS_REJECTED = "REJECTED"
-    STATUS_CANCELLED = "CANCELLED"
 
     _routes = {
         "api.login":"/rest/auth/angelbroking/user/v1/loginByPassword",
@@ -83,20 +42,59 @@ class SmartConnect(object):
         "api.rms.limit": "/rest/secure/angelbroking/user/v1/getRMS",
         "api.holding": "/rest/secure/angelbroking/portfolio/v1/getHolding",
         "api.position": "/rest/secure/angelbroking/order/v1/getPosition",
-        "api.convert.position": "/rest/secure/angelbroking/order/v1/convertPosition"
+        "api.convert.position": "/rest/secure/angelbroking/order/v1/convertPosition",
+
+        "api.gtt.create":"/gtt-service/rest/secure/angelbroking/gtt/v1/createRule",
+        "api.gtt.modify":"/gtt-service/rest/secure/angelbroking/gtt/v1/modifyRule",
+        "api.gtt.cancel":"/gtt-service/rest/secure/angelbroking/gtt/v1/cancelRule",
+        "api.gtt.details":"/rest/secure/angelbroking/gtt/v1/ruleDetails",
+<<<<<<< HEAD
+        "api.gtt.list":"/rest/secure/angelbroking/gtt/v1/ruleList"
+=======
+        "api.gtt.list":"/rest/secure/angelbroking/gtt/v1/ruleList",
+
+        "api.candle.data":"/rest/secure/angelbroking/historical/v1/getCandleData"
+>>>>>>> 7cd96b4aadd572e456013fa73f9e89421f958414
     }
 
-    def __init__(self, api_key=None, access_token=None, refresh_token=None, userId=None, root=None, debug=False, timeout=None, proxies=None, pool=None, disable_ssl=False):
+
+    try:
+        clientPublicIp= " " + get('https://api.ipify.org').text
+        if " " in clientPublicIp:
+            clientPublicIp=clientPublicIp.replace(" ","")
+        hostname = socket.gethostname()
+        clientLocalIp=socket.gethostbyname(hostname)
+    except Exception as e:
+        print("Exception while retriving IP Address,using local host IP address",e)
+    finally:
+        clientPublicIp="106.193.147.98"
+        clientLocalIp="127.0.0.1"
+    clientMacAddress=':'.join(re.findall('..', '%012x' % uuid.getnode()))
+    accept = "application/json"
+    userType = "USER"
+    sourceID = "WEB"
+    
+
+    def __init__(self, api_key=None, access_token=None, refresh_token=None,feed_token=None, userId=None, root=None, debug=False, timeout=None, proxies=None, pool=None, disable_ssl=False,accept=None,userType=None,sourceID=None,Authorization=None,clientPublicIP=None,clientMacAddress=None,clientLocalIP=None,privateKey=None):
         self.debug = debug
         self.api_key = api_key
         self.session_expiry_hook = None
         self.disable_ssl = disable_ssl
         self.access_token = access_token
         self.refresh_token = refresh_token
+        self.feed_token = feed_token
         self.userId = userId
         self.proxies = proxies if proxies else {}
-        self.root = root or self._loginUrl
+        self.root = root or self._rootUrl
         self.timeout = timeout or self._default_timeout
+        self.Authorization= None
+        self.clientLocalIP=self.clientLocalIp
+        self.clientPublicIP=self.clientPublicIp
+        self.clientMacAddress=self.clientMacAddress
+        self.privateKey=api_key
+        self.accept=self.accept
+        self.userType=self.userType
+        self.sourceID=self.sourceID
 
         if pool:
             self.reqsession = requests.Session()
@@ -108,6 +106,17 @@ class SmartConnect(object):
 
         # disable requests SSL warning
         requests.packages.urllib3.disable_warnings()
+    def requestHeaders(self):
+        return{
+            "Content-type":self.accept,
+            "X-ClientLocalIP": self.clientLocalIp,
+            "X-ClientPublicIP": self.clientPublicIp,
+            "X-MACAddress": self.clientMacAddress,
+            "Accept": self.accept,
+            "X-PrivateKey": self.privateKey,
+            "X-UserType": self.userType,
+            "X-SourceID": self.sourceID
+        }
 
     def setSessionExpiryHook(self, method):
         if not callable(method):
@@ -115,7 +124,7 @@ class SmartConnect(object):
         self.session_expiry_hook = method
     
     def getUserId():
-        return userId;
+        return userId
 
     def setUserId(self,id):
         self.userId=id
@@ -127,6 +136,14 @@ class SmartConnect(object):
     def setRefreshToken(self, refresh_token):
 
         self.refresh_token = refresh_token
+
+    def setFeedToken(self,feedToken):
+        
+        self.feed_token=feedToken
+
+    def getfeedToken(self):
+        return self.feed_token
+
     
     def login_url(self):
         """Get the remote login url to which a user should be redirected to initiate the login flow."""
@@ -137,33 +154,12 @@ class SmartConnect(object):
         params = parameters.copy() if parameters else {}
        
         uri =self._routes[route].format(**params)
-        print(uri)
         url = urljoin(self.root, uri)
-        print(url)
-        hostname = socket.gethostname() 
-        clientLocalIP=socket.gethostbyname(hostname)
-        clientPublicIP=get('https://api.ipify.org').text
-        macAddress = ':'.join(re.findall('..', '%012x' % uuid.getnode()))
-        privateKey = "test"
-        accept = "application/json"
-        userType = "USER"
-        sourceID = "WEB"
+
 
         # Custom headers
-        headers = {
-            #"X-SmartApi-Version": "", 
-            #"User-Agent": self._user_agent()
-            "Content-type":accept,
-            "X-ClientLocalIP": clientLocalIP,
-            "X-ClientPublicIP": clientPublicIP,
-            "X-MACAddress": macAddress,
-            "Accept": accept,
-            "X-PrivateKey": privateKey,
-            "X-UserType": userType,
-            "X-SourceID": sourceID
-        }
+        headers = self.requestHeaders()
 
-        #if self.api_key and self.access_token:
         if self.access_token:
             # set authorization header
         
@@ -183,7 +179,7 @@ class SmartConnect(object):
                                         allow_redirects=True,
                                         timeout=self.timeout,
                                         proxies=self.proxies)
-            print("The Response Content",r.content)
+           
         except Exception as e:
             raise e
 
@@ -234,22 +230,26 @@ class SmartConnect(object):
         
         params={"clientcode":clientCode,"password":password}
         loginResultObject=self._postRequest("api.login",params)
-        jwtToken=loginResultObject['data']['jwtToken']
-        self.setAccessToken(jwtToken)
-        refreshToken=loginResultObject['data']['refreshToken']
-        self.setRefreshToken(refreshToken)
-        user=self.getProfile(refreshToken)
-    
-        id=user['data']['clientcode']
-        #id='D88311'
-        print(id)
+        
+        if loginResultObject['status']==True:
+            jwtToken=loginResultObject['data']['jwtToken']
+            self.setAccessToken(jwtToken)
+            refreshToken=loginResultObject['data']['refreshToken']
+            feedToken=loginResultObject['data']['feedToken']
+            self.setRefreshToken(refreshToken)
+            self.setFeedToken(feedToken)
+            user=self.getProfile(refreshToken)
+        
+            id=user['data']['clientcode']
+            #id='D88311'
+            self.setUserId(id)
+            user['data']['jwtToken']="Bearer "+jwtToken
+            user['data']['refreshToken']=refreshToken
 
-        self.setUserId(id)
-        user['data']['jwtToken']="Bearer "+jwtToken
-        user['data']['refreshToken']=refreshToken
-        print("USER",user)
-        return user
-    
+            
+            return user
+        else:
+            return loginResultObject
     def terminateSession(self,clientCode):
         logoutResponseObject=self._postRequest("api.logout",{"clientcode":clientCode})
         return logoutResponseObject
@@ -257,36 +257,34 @@ class SmartConnect(object):
     def generateToken(self,refresh_token):
         response=self._postRequest('api.token',{"refreshToken":refresh_token})
         jwtToken=response['data']['jwtToken']
+        feedToken=response['data']['feedToken']
+        self.setFeedToken(feedToken)
         self.setAccessToken(jwtToken)
+
         return response
 
     def renewAccessToken(self):
-
-        # h = hashlib.sha256(self.api_key.encode("utf-8") + refresh_token.encode("utf-8") + access_token.encode("utf-8"))
-        # checksum = h.hexdigest()
-
         response =self._postRequest('api.refresh', {
             "jwtToken": self.access_token,
             "refreshToken": self.refresh_token,
-            #"checksum": checksum
+            
         })
        
         tokenSet={}
 
         if "jwtToken" in response:
             tokenSet['jwtToken']=response['data']['jwtToken']
-        tokenSet['clientcode']=self.userId
+        tokenSet['clientcode']=self. userId   
         tokenSet['refreshToken']=response['data']["refreshToken"]
        
         return tokenSet
 
     def getProfile(self,refreshToken):
         user=self._getRequest("api.user.profile",{"refreshToken":refreshToken})
-        print("USER PROFILE",user)
         return user
     
     def placeOrder(self,orderparams):
-        #params = {"exchange":orderparams.exchange,"symbolToken":orderparams.symboltoken,"transactionType":orderparams.transactionType,"quantity":orderparams.quantity,"price":orderparams.price,"productType":orderparams.producttype,"orderType":orderparams.ordertype,"duration":orderparams.duration,"variety":orderparams.variety,"tradingSymbol":orderparams.tradingsymbol,"triggerPrice":orderparams.trigger_price,"squareoff":orderparams.squareoff,"stoploss":orderparams.stoploss,"trailingStoploss":orderparams.trailing_stoploss,"tag":orderparams.tag}
+
         params=orderparams
        
         for k in list(params.keys()):
@@ -294,7 +292,7 @@ class SmartConnect(object):
                 del(params[k])
         
         orderResponse= self._postRequest("api.order.place", params)['data']['orderid']
-
+    
         return orderResponse
     
     def modifyOrder(self,orderparams):
@@ -305,8 +303,6 @@ class SmartConnect(object):
                 del(params[k])
 
         orderResponse= self._postRequest("api.order.modify", params)
-        #order=Order(orderResponse)
-        #order['orderId']=orderResponse['data']['orderid']
         return orderResponse
     
     def cancelOrder(self, order_id,variety):
@@ -352,6 +348,73 @@ class SmartConnect(object):
 
         return convertPositionResponse
 
+    def gttCreateRule(self,createRuleParams):
+        params=createRuleParams
+        for k in list(params.keys()):
+            if params[k] is None:
+                del(params[k])
+
+        createGttRuleResponse=self._postRequest("api.gtt.create",params)
+<<<<<<< HEAD
+        print(createGttRuleResponse)       
+=======
+        #print(createGttRuleResponse)       
+>>>>>>> 7cd96b4aadd572e456013fa73f9e89421f958414
+        return createGttRuleResponse['data']['id']
+
+    def gttModifyRule(self,modifyRuleParams):
+        params=modifyRuleParams
+        for k in list(params.keys()):
+            if params[k] is None:
+                del(params[k])
+        modifyGttRuleResponse=self._postRequest("api.gtt.modify",params)
+<<<<<<< HEAD
+        print(modifyGttRuleResponse)
+=======
+        #print(modifyGttRuleResponse)
+>>>>>>> 7cd96b4aadd572e456013fa73f9e89421f958414
+        return modifyGttRuleResponse['data']['id']
+     
+    def gttCancelRule(self,gttCancelParams):
+        params=gttCancelParams
+        for k in list(params.keys()):
+            if params[k] is None:
+                del(params[k])
+        
+        #print(params)
+        cancelGttRuleResponse=self._postRequest("api.gtt.cancel",params)
+        #print(cancelGttRuleResponse)
+        return cancelGttRuleResponse
+     
+    def gttDetails(self,id):
+        params={
+            "id":id
+            }
+        gttDetailsResponse=self._postRequest("api.gtt.details",params)
+        return gttDetailsResponse
+    
+    def gttLists(self,status,page,count):
+        if type(status)== list:
+            params={
+                "status":status,
+                "page":page,
+                "count":count
+            }
+            gttListResponse=self._postRequest("api.gtt.list",params)
+            #print(gttListResponse)
+            return gttListResponse
+        else:
+            message="The status param is entered as" +str(type(status))+". Please enter status param as a list i.e., status=['CANCELLED']"
+            return message
+
+    def getCandleData(self,historicDataParams):
+        params=historicDataParams
+        for k in list(params.keys()):
+            if params[k] is None:
+                del(params[k])
+        getCandleDataResponse=self._postRequest("api.candle.data",historicDataParams)
+        return getCandleDataResponse
+        
     def _user_agent(self):
         return (__title__ + "-python/").capitalize() + __version__   
 
