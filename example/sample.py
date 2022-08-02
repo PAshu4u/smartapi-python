@@ -1,28 +1,9 @@
-# SMARTAPI-PYTHON
-
-SMARTAPI-PYTHON is a Python library for dealing AMX,that is a set of REST-like HTTP APIs that expose many capabilities required to build stock market investment and trading platforms. It lets you execute orders in real time.
-
-## Installation
-
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install smartapi-python.
-
-```bash
-pip install smartapi-python
-pip install websocket-client
-```
-
-## Usage
-
-```python
 # package import statement
 from smartapi import SmartConnect #or from smartapi.smartConnect import SmartConnect
 #import smartapi.smartExceptions(for smartExceptions)
 
 #create object of call
-obj=SmartConnect(api_key="your api key",
-                #optional
-                #access_token = "your access token",
-                #refresh_token = "your refresh_token")
+obj=SmartConnect(api_key="your api key")
 
 #login api call
 
@@ -68,7 +49,7 @@ try:
             "triggerprice" : 200000,
             "timeperiod" : 365
         }
-    rule_id=gtt.gttCreateRule(gttCreateParams)
+    rule_id=obj.gttCreateRule(gttCreateParams)
     print("The GTT rule id is: {}".format(rule_id))
 except Exception as e:
     print("GTT Rule creation failed: {}".format(e.message))
@@ -78,7 +59,7 @@ try:
     status=["FORALL"] #should be a list
     page=1
     count=10
-    lists=smartApi.gttLists(status,page,count)
+    lists=obj.gttLists(status,page,count)
 except Exception as e:
     print("GTT Rule List failed: {}".format(e.message))
 
@@ -91,7 +72,7 @@ try:
     "fromdate": "2021-02-08 09:00", 
     "todate": "2021-02-08 09:16"
     }
-    smartApi.getCandleData(historicParam)
+    obj.getCandleData(historicParam)
 except Exception as e:
     print("Historic Api failed: {}".format(e.message))
 #logout
@@ -100,46 +81,33 @@ try:
     print("Logout Successfull")
 except Exception as e:
     print("Logout failed: {}".format(e.message))
-```
 
 
-## Getting started with SmartAPI Websocket's
-```python
 
-from smartapiwebsocket import SmartWebSocket
+## WebSocket
+from smartapi import WebSocket
 
-# feed_token=092017047
-FEED_TOKEN="YOUR_FEED_TOKEN"
-CLIENT_CODE="YOUR_CLIENT_CODE"
-# token="mcx_fo|224395"
-token="EXCHANGE|TOKEN_SYMBOL"    #SAMPLE: nse_cm|2885&nse_cm|1594&nse_cm|11536&nse_cm|3045
-# token="mcx_fo|226745&mcx_fo|220822&mcx_fo|227182&mcx_fo|221599"
-task="mw"   # mw|sfi|dp
+FEED_TOKEN= "your feed token"
+CLIENT_CODE="your client Id"
+token="channel you want the information of" #"nse_cm|2885&nse_cm|1594&nse_cm|11536"
+task="task" #"mw"|"sfi"|"dp"
+ss = WebSocket(FEED_TOKEN, CLIENT_CODE)
 
-ss = SmartWebSocket(FEED_TOKEN, CLIENT_CODE)
+def on_tick(ws, tick):
+    print("Ticks: {}".format(tick))
 
-def on_message(ws, message):
-    print("Ticks: {}".format(message))
+def on_connect(ws, response):
+    ws.websocket_connection() # Websocket connection  
+    ws.send_request(token,task) 
     
-def on_open(ws):
-    print("on open")
-    ss.subscribe(task,token)
-    
-def on_error(ws, error):
-    print(error)
-    
-def on_close(ws):
-    print("Close")
+def on_close(ws, code, reason):
+    ws.stop()
 
 # Assign the callbacks.
-ss._on_open = on_open
-ss._on_message = on_message
-ss._on_error = on_error
-ss._on_close = on_close
+ss.on_ticks = on_tick
+ss.on_connect = on_connect
+ss.on_close = on_close
 
 ss.connect()
-```
-
-
 
 
